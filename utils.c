@@ -1,3 +1,13 @@
+#define _CRT_SECURE_NO_WARNINGS
+
+#include <windows.h>
+#include <stdint.h>
+#include <assert.h>
+#include <ctype.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <math.h>
+
 #define MAX(x, y) ((x) >= (y) ? (x) : (y))
 
 #define buf_hdr(b) ((Buf *)((char *)(b) - offsetof(Buf, buf)))

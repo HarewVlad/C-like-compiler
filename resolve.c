@@ -45,19 +45,18 @@ void fill_symbol_table(Stmt *stmt)
 
 Decl *get_sym(const char *name)
 {
-	Decl *d = NULL;
 	for (size_t i = 0; i < buf_len(local_table); i++)
 	{
 		for (size_t j = 0; j < buf_len(local_table[i]); j++)
 		{
-			d = local_table[i][j].decl;
+			Decl *d = local_table[i][j].decl;
 			if (strcmp(d->name, name) == 0) // TODO: str interning
 			{
 				return d;
 			}
 		}
 	}
-	return d;
+	return NULL;
 }
 
 // FOR NOW, only resolve local table
@@ -143,12 +142,11 @@ EntityComplete *new_entity_complete(Decl *decl, Entity *entity)
 
 Sym *resolve_name(size_t index, const char *name)
 {
-	Sym *s = NULL;
 	for (size_t i = index; i < buf_len(local_table); i++)
 	{
 		for (size_t j = 0; j < buf_len(local_table[i]); j++)
 		{
-			s = &local_table[i][j];
+			Sym *s = &local_table[i][j];
 			Decl *d = s->decl;
 			if (strcmp(d->name, name) == 0) // TODO: str interning
 			{
@@ -159,7 +157,7 @@ Sym *resolve_name(size_t index, const char *name)
 			}
 		}
 	}
-	return s;
+	return NULL;
 }
 
 

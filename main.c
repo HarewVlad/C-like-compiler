@@ -45,6 +45,7 @@ void type_check_test()
 	resolve_types();
 	printf("\n\n");
 	dump_entities();
+	printf("\n\n");
 }
 
 void parse_test()

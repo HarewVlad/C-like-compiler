@@ -1,12 +1,3 @@
-#define _CRT_SECURE_NO_WARNINGS
-#include <windows.h>
-#include <stdint.h>
-#include <assert.h>
-#include <ctype.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <math.h>
-
 #include "utils.c"
 #include "emitter.c"
 #include "lex.c"

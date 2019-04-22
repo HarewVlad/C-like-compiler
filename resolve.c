@@ -143,23 +143,23 @@ EntityComplete *new_entity_complete(Decl *decl, Entity *entity)
 
 Sym *resolve_name(size_t index, const char *name)
 {
-	Sym *t = NULL;
+	Sym *s = NULL;
 	for (size_t i = index; i < buf_len(local_table); i++)
 	{
 		for (size_t j = 0; j < buf_len(local_table[i]); j++)
 		{
-			t = &local_table[i][j];
-			Decl *d = t->decl;
+			s = &local_table[i][j];
+			Decl *d = s->decl;
 			if (strcmp(d->name, name) == 0) // TODO: str interning
 			{
-				if (t->kind == SYM_RESOLVING)
+				if (s->kind == SYM_RESOLVING)
 					fatal("cyclic dependency");
 
-				return t;
+				return s;
 			}
 		}
 	}
-	return t;
+	return s;
 }
 
 

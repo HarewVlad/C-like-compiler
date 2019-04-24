@@ -1,39 +1,44 @@
-void resolve_type(Typespec *left, Entity *entity)
+void type_check_expr(Typespec type, Expr *e)
 {
-	switch (entity->kind)
+	switch (e->kind)
 	{
-	case ENTITY_INTEGRAL: // TODO: convert method, not just barely do this
-		if (*left == VAR_INT && entity->expr->kind == EXPR_DOUBLE)
+	case EXPR_INT:
+		break;
+	case EXPR_DOUBLE:
+		if (type == VAR_INT && e->kind == EXPR_DOUBLE)
 		{
-			entity->expr->kind = EXPR_INT;
-			entity->expr->int_val = (int)floor(entity->expr->double_val);
+			e->kind = EXPR_INT;
+			e->int_val = (int)floor(e->double_val);
 		}
-		if (*left == VAR_CHAR && entity->expr->kind == EXPR_DOUBLE)
-		{
-			entity->expr->kind = EXPR_INT;
-			entity->expr->int_val = (int)floor(entity->expr->double_val);
-		}
-		// ...
 		break;
-	case ENTITY_DECL:
-		// ...
-		break;
-	case ENTITY_BINARY:
-		resolve_type(left, entity->left);
-		resolve_type(left, entity->right);
-		break;
-	case ENTITY_NONE:
-		break;
-	default:
-		assert(0);
+	case EXPR_BINARY:
+		type_check_expr(type, e->binary.left);
+		type_check_expr(type, e->binary.right);
 		break;
 	}
 }
 
-void resolve_types()
+void type_check_stmt(Stmt *s)
 {
-	for (size_t i = 0; i < buf_len(entities); i++)
+	switch (s->kind)
 	{
-		resolve_type(&entities[i]->decl->var.type, entities[i]->entity);
+	case STMT_DECL:
+		type_check_expr(s->decl->var.type, s->decl->var.expr);
+		break;
+	case STMT_ASIGN:
+	{
+		Decl *d = get_sym(s->asign.name);
+		type_check_expr(d->var.type, s->asign.e);
+	}
+		break;
+	case STMT_BLOCK:
+		for (size_t i = 0; i < buf_len(s->block.stmts); i++)
+		{
+			type_check_stmt(s->block.stmts[i]);
+		}
+		break;
+	default:
+		assert(0);
+		break;
 	}
 }

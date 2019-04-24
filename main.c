@@ -40,21 +40,13 @@ void resolve_test()
 	dump_entities();
 }
 
-void type_check_test()
-{
-	resolve_types();
-	printf("\n\n");
-	dump_entities();
-	printf("\n\n");
-}
-
 void parse_test()
 {
 	init_regs();
 
 	const char *code[] =
 	{
-		"{ int a = b + 10.5; int b = 30.333; b = 10; int c = b;}",
+		"{ int b = a + 2.5; int a = 10;}",
 	};
 
 	Stmt **stmt_list = NULL;
@@ -67,9 +59,18 @@ void parse_test()
 		fill_symbol_table(s);
 	}
 
+	printf("Resolve -> \n");
  	resolve_test();
-	type_check_test();
+	
+	printf("Type check -> \n");
+	for (size_t i = 0; i < buf_len(stmt_list); i++)
+	{
+		type_check_stmt(stmt_list[i]);
+		dump_stmt(stmt_list[i]);
+		printf("\n");
+	}
 
+	printf("Code gen -> \n");
 	for (size_t i = 0; i < buf_len(stmt_list); i++)
 	{
 		install_operand(stmt_list[i]);
@@ -97,4 +98,4 @@ int main()
 	lex_test();
 	parse_test();
 	emit_code();
-	}
+}

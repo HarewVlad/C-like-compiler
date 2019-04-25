@@ -37,7 +37,6 @@ void init_stream(const char *src)
 void resolve_test()
 {
 	resolve_decls();
-	dump_entities();
 }
 
 void parse_test()
@@ -46,7 +45,7 @@ void parse_test()
 
 	const char *code[] =
 	{
-		"{ int b = a + 2.5; int a = 10;}",
+		"{ int a = b + 10.6 + 20.6 + c; int b = 20; }",
 	};
 
 	Stmt **stmt_list = NULL;

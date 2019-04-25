@@ -45,18 +45,19 @@ void fill_symbol_table(Stmt *stmt)
 
 Decl *get_sym(const char *name)
 {
+	Decl *d = NULL;
 	for (size_t i = 0; i < buf_len(local_table); i++)
 	{
 		for (size_t j = 0; j < buf_len(local_table[i]); j++)
 		{
-			Decl *d = local_table[i][j].decl;
+			d = local_table[i][j].decl;
 			if (strcmp(d->name, name) == 0) // TODO: str interning
 			{
 				return d;
 			}
 		}
 	}
-	return NULL;
+	return d;
 }
 
 // FOR NOW, only resolve local table
@@ -161,15 +162,14 @@ Sym *resolve_name(size_t index, const char *name)
 }
 
 
-Entity *resolve_decl(size_t index_table, Sym *s, Decl *d);
+void resolve_decl(size_t index_table, Sym *s, Decl *d);
 
-Entity *resolve_expr(size_t index_table, Sym *s, Expr *e)
+void resolve_expr(size_t index_table, Sym *s, Expr *e)
 {
 	switch (e->kind)
 	{
 	case EXPR_INT: case EXPR_CHAR: case EXPR_DOUBLE:
 		s->kind = SYM_RESOLVED;
-		return new_entity_integral(e);
 		break;
 	case EXPR_NAME:
 		s->kind = SYM_RESOLVING;
@@ -177,13 +177,13 @@ Entity *resolve_expr(size_t index_table, Sym *s, Expr *e)
 		if (new_s != NULL)
 		{
 			resolve_decl(index_table, new_s, new_s->decl);
-			return new_entity_decl(new_s->decl);
 		}
+		else
+			fatal("unresolved sym '%s'", e->name);
 		break;
 	case EXPR_BINARY:
-		Entity *left = resolve_expr(index_table, s, e->binary.left);
-		Entity *right = resolve_expr(index_table, s, e->binary.right);
-		return new_entity_binary(e->binary.op, left, right);
+		resolve_expr(index_table, s, e->binary.left);
+		resolve_expr(index_table, s, e->binary.right);
 		break;
 	default:
 		assert(0);
@@ -191,12 +191,12 @@ Entity *resolve_expr(size_t index_table, Sym *s, Expr *e)
 	}
 }
 
-Entity *resolve_decl(size_t index_table, Sym *s, Decl *d)
+void resolve_decl(size_t index_table, Sym *s, Decl *d)
 {
 	switch (d->kind)
 	{
 	case DECL_VAR:
-		return resolve_expr(index_table, s, d->var.expr);
+		resolve_expr(index_table, s, d->var.expr);
 		break;
 	default:
 		assert(0);
@@ -212,13 +212,7 @@ void resolve_decls()
 		{
 			Sym s = local_table[i][j];
 			Decl *d = local_table[i][j].decl;
-			Entity *e = new_entity_none();
-			if (d->var.expr)
-			{
-				e = resolve_decl(i, &s, d);
-			}
-			EntityComplete *e_complete = new_entity_complete(d, e);
-			buf_push(entities, e_complete);
+			resolve_decl(i, &s, d);
 		}
 	}
 }
@@ -243,48 +237,5 @@ void dump_local_table()
 			dump_decl(local_table[i][j].decl);
 		}
 		printf(")");
-	}
-}
-
-void dump_entity(Entity *e)
-{
-	switch (e->kind)
-	{
-	case ENTITY_NONE:
-		printf("NULL");
-		break;
-	case ENTITY_DECL:
-		printf("(%s ", e->decl->name);
-		dump_typespec(e->decl->var.type);
-		printf(")");
-		break;
-	case ENTITY_BINARY:
-		dump_entity(e->left);
-		printf(" %c ", e->op);
-		dump_entity(e->right);
-		break;
-	case ENTITY_INTEGRAL:
-		dump_expr(e->expr);
-		break;
-	default:
-		assert(0);
-		break;
-	}
-}
-
-void dump_entity_complete(EntityComplete *entity_complete)
-{
-	printf("(%s ", entity_complete->decl->name);
-	dump_typespec(entity_complete->decl->var.type);
-	printf(" : ");
-	dump_entity(entity_complete->entity);
-	printf(")\n");
-}
-
-void dump_entities()
-{
-	for (size_t i = 0; i < buf_len(entities); i++)
-	{
-		dump_entity_complete(entities[i]);
 	}
 }

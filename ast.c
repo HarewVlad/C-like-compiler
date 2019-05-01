@@ -123,9 +123,16 @@ typedef enum StmtKind
 	STMT_DECL,
 	STMT_ASIGN,
 	STMT_BLOCK,
+	STMT_IF,
 } StmtKind;
 
 typedef struct Stmt Stmt;
+
+typedef struct ElseIf
+{
+	Expr *cond;
+	Stmt *block;
+} ElseIf;
 
 struct Stmt
 {
@@ -133,7 +140,7 @@ struct Stmt
 	union
 	{
 		Decl *decl;
-		struct
+		struct // TODO: rethink this
 		{
 			Stmt **stmts;
 		} block;
@@ -142,6 +149,13 @@ struct Stmt
 			const char *name;
 			Expr *e;
 		} asign;
+		struct
+		{
+			Expr *cond;
+			Stmt *then_block;
+			ElseIf *else_ifs;
+			Stmt *else_block;
+		} if_stmt;
 	};
 };
 
@@ -171,6 +185,16 @@ Stmt *new_stmt_block(Stmt **stmts)
 {
 	Stmt *s = new_stmt(STMT_BLOCK);
 	s->block.stmts = stmts;
+	return s;
+}
+
+Stmt *new_stmt_if(Expr *cond, Stmt *then_block, ElseIf *else_ifs, Stmt *else_block)
+{
+	Stmt *s = new_stmt(STMT_IF);
+	s->if_stmt.cond = cond;
+	s->if_stmt.then_block = then_block;
+	s->if_stmt.else_ifs = else_ifs;
+	s->if_stmt.else_block = else_block;
 	return s;
 }
 
@@ -211,7 +235,7 @@ void dump_expr(Expr *e)
 		printf("%c", e->char_val);
 		break;
 	case EXPR_BINARY:
-		printf("(%c ", e->binary.op);
+		printf("(%s ", token_to_char[e->binary.op]);
 		dump_expr(e->binary.left);
 		printf(" ");
 		dump_expr(e->binary.right);
@@ -300,6 +324,34 @@ void dump_stmt(Stmt *s)
 			dump_stmt(s->block.stmts[i]);
 		}
 		printf("})");
+		break;
+	case STMT_ASIGN:
+		printf("(%s = ", s->asign.name);
+		dump_expr(s->asign.e);
+		printf(")");
+		break;
+	case STMT_IF:
+		printf("(if ");
+		dump_expr(s->if_stmt.cond);
+		if (s->if_stmt.then_block != NULL)
+			dump_stmt(s->if_stmt.then_block);
+		if (s->if_stmt.else_ifs != NULL)
+		{
+			for (size_t i = 0; i < buf_len(s->if_stmt.else_ifs); i++)
+			{
+				printf("(else if ");
+				dump_expr(s->if_stmt.else_ifs->cond);
+				dump_stmt(s->if_stmt.else_ifs->block);
+				printf(")");
+			}
+		}
+		if (s->if_stmt.else_block != NULL)
+		{
+			printf("(else ");
+			dump_stmt(s->if_stmt.else_block);
+			printf(")");
+		}
+		printf(")");
 		break;
 	default:
 		assert(0);

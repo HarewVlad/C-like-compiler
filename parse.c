@@ -40,7 +40,7 @@ bool expect_token(TokenKind kind)
 }
 Expr *parse_expr();
 
-Expr *parse_expr2()
+Expr *parse_expr3()
 {
 	if (is_token(TOKEN_INT))
 	{
@@ -77,10 +77,23 @@ Expr *parse_expr2()
 	return NULL;
 }
 
+Expr *parse_expr2()
+{
+	Expr *e = parse_expr3();
+	while (is_token(TOKEN_MUL) || is_token(TOKEN_DIV))
+	{
+		char op = token.kind;
+		next();
+		Expr *er = parse_expr3();
+		e = new_expr_binary(op, e, er);
+	}
+	return e;
+}
+
 Expr *parse_expr1()
 {
 	Expr *e = parse_expr2();
-	while (is_token('*') || is_token('/'))
+	while (is_token(TOKEN_ADD) || is_token(TOKEN_SUB))
 	{
 		char op = token.kind;
 		next();
@@ -93,12 +106,11 @@ Expr *parse_expr1()
 Expr *parse_expr0()
 {
 	Expr *e = parse_expr1();
-	while (is_token('+') || is_token('-'))
+	while (is_token(TOKEN_EQ_EQ))
 	{
-		char op = token.kind;
 		next();
 		Expr *er = parse_expr1();
-		e = new_expr_binary(op, e, er);
+		e = new_expr_binary(TOKEN_EQ_EQ, e, er);
 	}
 	return e;
 }
@@ -123,7 +135,7 @@ Decl *parse_decl() // TODO: optimize
 	{
 		const char *name = parse_name();
 		Expr *e = NULL;
-		if (match_token('='))
+		if (match_token(TOKEN_EQ))
 		{
 			e = parse_expr();
 		}
@@ -134,7 +146,7 @@ Decl *parse_decl() // TODO: optimize
 	{
 		const char *name = parse_name();
 		Expr *e = NULL;
-		if (match_token('='))
+		if (match_token(TOKEN_EQ))
 		{
 			e = parse_expr();
 		}
@@ -145,7 +157,7 @@ Decl *parse_decl() // TODO: optimize
 	{
 		const char *name = parse_name();
 		Expr *e = NULL;
-		if (match_token('='))
+		if (match_token(TOKEN_EQ))
 		{
 			e = parse_expr();
 		}
@@ -176,10 +188,38 @@ Stmt **parse_stmt_list()
 Stmt *parse_stmt_asign()
 {
 	const char *name = parse_name();
-	expect_token('=');
+	expect_token(TOKEN_EQ);
 	Expr *e = parse_expr();
 	expect_token(';');
 	return new_stmt_asign(name, e);
+}
+
+Stmt *parse_stmt_if()
+{
+	expect_token('(');
+	Expr *cond = NULL;
+	if (!is_token(')'))
+	{
+		cond = parse_expr();
+	}
+	expect_token(')');
+	Stmt *then_block = parse_stmt();
+	ElseIf *else_ifs = NULL;
+	Stmt *else_block = NULL;
+	while (match_keyword(else_keyword))
+	{
+		if (match_keyword(if_keyword))
+		{
+			expect_token('(');
+			Expr *e = parse_expr();
+			expect_token(')');
+			Stmt *s = parse_stmt();
+			buf_push(else_ifs, (ElseIf) { e, s });
+		}
+		else
+			else_block = parse_stmt();
+	}
+	return new_stmt_if(cond, then_block, else_ifs, else_block);
 }
 
 Stmt *parse_stmt()
@@ -204,6 +244,10 @@ Stmt *parse_stmt()
 	else if (is_token(TOKEN_NAME))
 	{
 		s = parse_stmt_asign();
+	}
+	else if (match_keyword(if_keyword))
+	{
+		s = parse_stmt_if();
 	}
 	return s;
 }

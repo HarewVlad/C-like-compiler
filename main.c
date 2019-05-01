@@ -9,24 +9,7 @@
 
 #pragma comment(lib, "user32.lib")
 
-void lex_test()
-{
-	stream = "if else hello 'H' 22.22 123.333 12";
-	next();
-	assert(token.kind == TOKEN_KEYWORD);
-	next();
-	assert(token.kind == TOKEN_KEYWORD);
-	next();
-	assert(token.kind == TOKEN_NAME);
-	next();
-	assert(token.kind == TOKEN_CHAR);
-	next();
-	assert(token.kind == TOKEN_DOUBLE);
-	next();
-	assert(token.kind == TOKEN_DOUBLE);
-	next();
-	assert(token.kind == TOKEN_INT);
-}
+#define LEX_TEST(a) (assert(token.kind == a), next())
 
 void init_stream(const char *src)
 {
@@ -34,18 +17,40 @@ void init_stream(const char *src)
 	next();
 }
 
+void lex_test()
+{
+	init_stream("if else hello 'H' 22.22 123.333 12 == += -= *= /= ++ --");
+	LEX_TEST(TOKEN_KEYWORD);
+	LEX_TEST(TOKEN_KEYWORD);
+	LEX_TEST(TOKEN_NAME);
+	LEX_TEST(TOKEN_CHAR);
+	LEX_TEST(TOKEN_DOUBLE);
+	LEX_TEST(TOKEN_DOUBLE);
+	LEX_TEST(TOKEN_INT);
+	LEX_TEST(TOKEN_EQ_EQ);
+	LEX_TEST(TOKEN_ADD_EQ);
+	LEX_TEST(TOKEN_SUB_EQ);
+	LEX_TEST(TOKEN_MUL_EQ);
+	LEX_TEST(TOKEN_DIV_EQ);
+	LEX_TEST(TOKEN_INC);
+	LEX_TEST(TOKEN_DEC);
+}
+
 void resolve_test()
 {
-	resolve_decls();
+	resolve();
+	dump_local_table();
+	printf("\n");
 }
 
 void parse_test()
 {
 	init_regs();
 
-	const char *code[] =
+	const char *code[] = // STMT_EXPR for checking cond.
 	{
-		"{ int a = b + 10.6 + 20.6 + c; int b = 20; }",
+		// "{ int a = b + 10.6 + 20.6 + c; b = 10; int b = 20; int c = 10.5;}",
+		"{ int a = 10; if (a == 10) { int c = a; } else if (a == 20) {int d = c;} else {int c = 10;} } " // TODO: resolve a == 10
 	};
 
 	Stmt **stmt_list = NULL;
@@ -55,11 +60,11 @@ void parse_test()
 		init_stream(code[i]);
 		Stmt *s = parse_stmt();
 		buf_push(stmt_list, s);
-		fill_symbol_table(s);
+		fill_local_table(s);
 	}
 
 	printf("Resolve -> \n");
- 	resolve_test();
+	resolve_test();
 	
 	printf("Type check -> \n");
 	for (size_t i = 0; i < buf_len(stmt_list); i++)
@@ -94,6 +99,7 @@ void test_reg()
 int main()
 {
 	init_keywords();
+
 	lex_test();
 	parse_test();
 	emit_code();

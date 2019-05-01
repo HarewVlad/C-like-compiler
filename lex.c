@@ -37,6 +37,7 @@ char *stream;
 
 typedef enum TokenKind
 {
+	// Types
 	TOKEN_NONE = 0,
 	TOKEN_INT,
 	TOKEN_DOUBLE,
@@ -44,7 +45,40 @@ typedef enum TokenKind
 	TOKEN_BOOL,
 	TOKEN_NAME,
 	TOKEN_KEYWORD,
+	// CMP
+	TOKEN_EQ,
+	TOKEN_EQ_EQ,
+	// Add, mul ...
+	TOKEN_ADD,
+	TOKEN_ADD_EQ,
+	TOKEN_SUB,
+	TOKEN_SUB_EQ,
+	TOKEN_MUL,
+	TOKEN_MUL_EQ,
+	TOKEN_DIV,
+	TOKEN_DIV_EQ,
+	TOKEN_INC,
+	TOKEN_DEC,
 } TokenKind;
+
+const char *token_to_char[] =
+{
+	[TOKEN_INT] = "int",
+	[TOKEN_CHAR] = "char",
+	[TOKEN_DOUBLE] = "double",
+	[TOKEN_EQ] = "=",
+	[TOKEN_EQ_EQ] = "==",
+	[TOKEN_ADD] = "+",
+	[TOKEN_ADD_EQ] = "+=",
+	[TOKEN_SUB] = "-",
+	[TOKEN_SUB_EQ] = "-=",
+	[TOKEN_MUL] = "*",
+	[TOKEN_MUL_EQ] = "*=",
+	[TOKEN_DIV] = "/",
+	[TOKEN_DIV_EQ] = "/=",
+	[TOKEN_INC] = "++",
+	[TOKEN_DEC] = "--",
+};
 
 typedef struct Token
 {
@@ -59,6 +93,38 @@ typedef struct Token
 } Token;
 
 Token token;
+
+#define case1(c, k) \
+	case c: \
+		token.kind = k; \
+		stream++; \
+		break; \
+
+#define case2(c1, k1, c2, k2) \
+	case c1: \
+		token.kind = k1; \
+		stream++; \
+		if (*stream == c2) \
+		{ \
+			token.kind = k2; \
+		} \
+		stream++; \
+		break; \
+
+#define case3(c1, k1, c2, k2, c3, k3) \
+	case c1: \
+		token.kind = k1; \
+		stream++; \
+		if (*stream == c2) \
+		{ \
+			token.kind = k2; \
+		} \
+		else if (*stream == c3) \
+		{ \
+			token.kind = k3; \
+		} \
+		stream++; \
+		break; \
 
 void next()
 {
@@ -139,9 +205,18 @@ repeat:
 		token.char_val = *stream++;
 		assert(*stream++ == '\'');
 		break;
+	case2('=', TOKEN_EQ, '=', TOKEN_EQ_EQ);
+	case3('+', TOKEN_ADD, '+', TOKEN_INC, '=', TOKEN_ADD_EQ);
+	case3('-', TOKEN_SUB, '-', TOKEN_DEC, '=', TOKEN_SUB_EQ);
+	case2('*', TOKEN_MUL, '=', TOKEN_MUL_EQ);
+	case2('/', TOKEN_DIV, '=', TOKEN_DIV_EQ);
 	default:
 		token.kind = *stream;
 		stream++;
 		break;
 	}
 }
+
+#undef case1
+#undef case2
+#undef case3

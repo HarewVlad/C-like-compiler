@@ -149,20 +149,6 @@ void dump_sym_table()
 	}
 }
 
-/*void dump_sym_table()
-{
-	for (size_t i = 0; i < buf_len(sym_table); i++)
-	{
-		printf("|%d| -> ", i);
-		for (size_t j = 0; j < buf_len(sym_table[i]->syms); j++)
-		{
-			new_dump_sym(sym_table[i]->syms[j]);
-		}
-		printf(", ");
-	}
-}
-*/
-
 // FOR NOW, only resolve local table
 
 Sym *resolve_name_decl(size_t index, const char *name)

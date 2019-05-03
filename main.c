@@ -39,7 +39,6 @@ void lex_test()
 void resolve_test()
 {
 	resolve();
-	dump_local_table();
 	printf("\n");
 }
 
@@ -50,7 +49,7 @@ void parse_test()
 	const char *code[] = // STMT_EXPR for checking cond.
 	{
 		// "{ int a = b + 10.6 + 20.6 + c; b = 10; int b = 20; int c = 10.5;}",
-		"{ int a = 10; if (a == 10) { int c = a; } else if (a == 20) {int d = c;} else {int c = 10;} } " // TODO: resolve a == 10
+		"{ int a = 10; int b = 20; if (a) { int c = 30; } else if (b) {int d = 40; int e = 50; } else { int f = 60; } }" // TODO: resolve a == 10
 	};
 
 	Stmt **stmt_list = NULL;
@@ -60,11 +59,13 @@ void parse_test()
 		init_stream(code[i]);
 		Stmt *s = parse_stmt();
 		buf_push(stmt_list, s);
-		fill_local_table(s);
+		fill0(s);
 	}
 
+	dump_sym_table();
+
 	printf("Resolve -> \n");
-	resolve_test();
+ 	resolve_test();
 	
 	printf("Type check -> \n");
 	for (size_t i = 0; i < buf_len(stmt_list); i++)

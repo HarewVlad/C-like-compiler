@@ -22,6 +22,29 @@ typedef struct Sym
 	};
 } Sym;
 
+Sym *new_sym(SymType type)
+{
+	Sym *s = malloc(sizeof(Sym));
+	s->type = type;
+	return s;
+}
+
+Sym *new_sym_decl(Decl *decl)
+{
+	Sym *s = new_sym(SYM_DECL);
+	s->kind = SYM_UNRESOLVED;
+	s->decl = decl;
+	return s;
+}
+
+Sym *new_sym_stmt(Stmt *stmt)
+{
+	Sym *s = new_sym(SYM_STMT);
+	s->kind = SYM_UNRESOLVED;
+	s->stmt = stmt;
+	return s;
+}
+
 Sym *global_table;
 Sym **local_table;
 
@@ -43,59 +66,102 @@ Decl *get_sym_decl(const char *name) // TODO: add name to struct
 	return d;
 }
 
-void fill_local_table(Stmt *s);
-
-void fill_sym(Sym **new_local_table, Stmt *stmt) // TODO: for now assume thats all inside block, redo later
+typedef struct SymTable
 {
-	switch (stmt->kind)
+	Sym *syms;
+} SymTable;
+
+typedef struct LocalSymTable
+{
+	SymTable *sym_tables;
+} LocalSymTable;
+
+LocalSymTable **local_sym_tables;
+
+void fill1(LocalSymTable **new_local_sym_table, Stmt *s);
+void fill0(Stmt *s);
+
+void fill2(SymTable **new_sym_table, Stmt *s)
+{
+	Sym *syms = NULL;
+	for (size_t i = 0; i < buf_len(s->block.stmts); i++)
 	{
-	case STMT_DECL:
-		buf_push(*new_local_table, (Sym) { SYM_UNRESOLVED, SYM_DECL, stmt->decl });
-		break;
-	case STMT_IF: // TODO: resolve cond.
-		fill_local_table(stmt->if_stmt.then_block);
-		if (stmt->if_stmt.else_ifs != NULL)
+		Stmt *stmt = s->block.stmts[i];
+		switch (stmt->kind)
 		{
-			for (size_t i = 0; i < buf_len(stmt->if_stmt.else_ifs); i++)
+		case STMT_DECL:
+			buf_push(syms, (Sym) { SYM_UNRESOLVED, SYM_DECL, stmt->decl });
+			break;
+		case STMT_IF: // TODO: refactor
+		{
+			SymTable *new_if_sym_table = NULL;
+			fill2(&new_if_sym_table, stmt->if_stmt.then_block);
+			if (stmt->if_stmt.else_ifs != NULL)
 			{
-				fill_local_table(stmt->if_stmt.else_ifs[i].block);
+				for (size_t j = 0; j < buf_len(stmt->if_stmt.else_ifs); j++)
+				{
+					fill2(&new_if_sym_table, stmt->if_stmt.else_ifs[j].block);
+				}
+			}
+			if (stmt->if_stmt.else_block != NULL)
+			{
+				fill2(&new_if_sym_table, stmt->if_stmt.else_block);
+			}
+			LocalSymTable *new_if_local_sym_table = NULL;
+			buf_push(new_if_local_sym_table, (LocalSymTable) { new_if_sym_table });
+			buf_push(local_sym_tables, new_if_local_sym_table);
+		}
+		break;
+		}
+	}
+	buf_push(*new_sym_table, (SymTable) { syms });
+}
+
+void fill1(LocalSymTable **new_local_sym_table, Stmt *s)
+{
+	SymTable *new_sym_table = NULL;
+	fill2(&new_sym_table, s);
+	buf_push(*new_local_sym_table, (LocalSymTable) { new_sym_table });
+}
+
+void fill0(Stmt *s)
+{
+	LocalSymTable *new_local_sym_table = NULL;
+	fill1(&new_local_sym_table, s);
+	buf_push(local_sym_tables, new_local_sym_table);
+}
+
+void dump_sym(Sym s);
+
+void dump_sym_table()
+{
+	for (size_t i = 0; i < buf_len(local_sym_tables); i++)
+	{
+		printf("|%d|", i);
+		for (size_t j = 0; j < buf_len(local_sym_tables[i]->sym_tables); j++)
+		{
+			printf("Local table -> ");
+			for (size_t k = 0; k < buf_len(local_sym_tables[i]->sym_tables[j].syms); k++)
+			{
+				dump_sym(local_sym_tables[i]->sym_tables[j].syms[k]);
 			}
 		}
-		if (stmt->if_stmt.else_block != NULL)
+	}
+}
+
+/*void dump_sym_table()
+{
+	for (size_t i = 0; i < buf_len(sym_table); i++)
+	{
+		printf("|%d| -> ", i);
+		for (size_t j = 0; j < buf_len(sym_table[i]->syms); j++)
 		{
-			fill_local_table(stmt->if_stmt.else_block);
+			new_dump_sym(sym_table[i]->syms[j]);
 		}
-		break;
-	case STMT_ASIGN:
-		buf_push(*new_local_table, (Sym) { SYM_UNRESOLVED, SYM_STMT, stmt });
-		break;
-	default:
-		assert(0);
-		break;
+		printf(", ");
 	}
 }
-
-// |1| - 1, 2, 3 |2| - 1, 2, 3
-
-void fill_local_table(Stmt *s)
-{
-	Sym *new_local_table = NULL;
-	for (size_t i = 0; i < buf_len(s->block.stmts); i++)
-	{
-		fill_sym(&new_local_table, s->block.stmts[i]);
-	}
-	buf_push(local_table, new_local_table);
-}
-
-void fill_another(Stmt *s)
-{
-	Sym *new_local_table = NULL;
-	for (size_t i = 0; i < buf_len(s->block.stmts); i++)
-	{
-		fill_local_table(s->block.stmts[i]);
-	}
-
-}
+*/
 
 // FOR NOW, only resolve local table
 

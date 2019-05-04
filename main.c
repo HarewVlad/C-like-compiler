@@ -49,7 +49,8 @@ void parse_test()
 	const char *code[] = // STMT_EXPR for checking cond.
 	{
 		// "{ int a = b + 10.6 + 20.6 + c; b = 10; int b = 20; int c = 10.5;}",
-		"{ int a = 10; int b = 20; if (a) { int c = 30; } else if (b) {int d = 40; int e = 50; } else { int f = 60; } }" // TODO: resolve a == 10
+		// "{ int a = 10; int b = 20; if (a) { int c = 30; } else if (b) {int d = 40; int e = f; } else { int f = 60; } }" // TODO: resolve a == 10
+		"{ int a = 10; int b = 20; if (a) { int c = d; } else if (b) { int d = 40; int e = 50; } }"
 	};
 
 	Stmt **stmt_list = NULL;

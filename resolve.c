@@ -45,27 +45,6 @@ Sym *new_sym_stmt(Stmt *stmt)
 	return s;
 }
 
-Sym *global_table;
-Sym **local_table;
-
-Decl *get_sym_decl(const char *name) // TODO: add name to struct
-{
-	Decl *d = NULL;
-	for (size_t i = 0; i < buf_len(local_table); i++)
-	{
-		for (size_t j = 0; j < buf_len(local_table[i]); j++)
-		{
-			Sym s = local_table[i][j];
-			d = local_table[i][j].decl;
-			if (s.type == SYM_DECL && strcmp(d->name, name) == 0) // TODO: str interning
-			{
-				return d;
-			}
-		}
-	}
-	return d;
-}
-
 typedef struct SymTable
 {
 	Sym *syms;
@@ -78,8 +57,26 @@ typedef struct LocalSymTable
 
 LocalSymTable **local_sym_tables;
 
-void fill1(LocalSymTable **new_local_sym_table, Stmt *s);
-void fill0(Stmt *s);
+Decl *get_sym_decl(const char *name) // TODO: add name to struct
+{
+	Decl *d = NULL;
+	for (size_t i = 0; i < buf_len(local_sym_tables); i++)
+	{
+		for (size_t j = 0; j < buf_len(local_sym_tables[i]->sym_tables); j++)
+		{
+			for (size_t k = 0; k < buf_len(local_sym_tables[i]->sym_tables[j].syms); k++)
+			{
+				Sym s = local_sym_tables[i]->sym_tables[j].syms[k];
+				d = s.decl;
+				if (s.type == SYM_DECL && strcmp(d->name, name) == 0) // TODO: str interning
+				{
+					return d;
+				}
+			}
+		}
+	}
+	return d;
+}
 
 void fill2(SymTable **new_sym_table, Stmt *s)
 {
@@ -153,18 +150,21 @@ void dump_sym_table()
 
 Sym *resolve_name_decl(size_t index, const char *name)
 {
-	for (size_t i = index; i < buf_len(local_table); i++)
+	for (size_t i = index + 1; i < buf_len(local_sym_tables); i++)
 	{
-		for (size_t j = 0; j < buf_len(local_table[i]); j++)
+		for (size_t j = 0; j < buf_len(local_sym_tables[i]->sym_tables); j++)
 		{
-			Sym *s = &local_table[i][j];
-			Decl *d = s->decl;
-			if (strcmp(d->name, name) == 0) // TODO: str interning
+			for (size_t k = 0; k < buf_len(local_sym_tables[i]->sym_tables[j].syms); k++)
 			{
-				if (s->kind == SYM_RESOLVING)
-					fatal("cyclic dependency");
+				Sym *s = &local_sym_tables[i]->sym_tables[j].syms[k];
+				Decl *d = s->decl;
+				if (strcmp(d->name, name) == 0) // TODO: str interning
+				{
+					if (s->kind == SYM_RESOLVING)
+						fatal("cyclic dependency");
 
-				return s;
+					return s;
+				}
 			}
 		}
 	}
@@ -246,12 +246,15 @@ void resolve_sym(size_t index_table, Sym *s)
 
 void resolve()
 {
-	for (size_t i = 0; i < buf_len(local_table); i++)
+	for (size_t i = 0; i < buf_len(local_sym_tables); i++)
 	{
-		for (size_t j = 0; j < buf_len(local_table[i]); j++)
+		for (size_t j = 0; j < buf_len(local_sym_tables[i]->sym_tables); j++)
 		{
-			Sym s = local_table[i][j];
-			resolve_sym(i, &s);
+			for (size_t k = 0; k < buf_len(local_sym_tables[i]->sym_tables[j].syms); k++)
+			{
+				Sym s = local_sym_tables[i]->sym_tables[j].syms[k];
+				resolve_sym(i, &s);
+			}
 		}
 	}
 }
@@ -269,28 +272,5 @@ void dump_sym(Sym s)
 	default:
 		assert(0);
 		break;
-	}
-}
-
-void dump_global_table()
-{
-	printf("(Global table -> ");
-	for (size_t i = 0; i < buf_len(global_table); i++)
-	{
-		dump_decl(global_table[i].decl);
-	}
-	printf(")");
-}
-
-void dump_local_table()
-{
-	for (size_t i = 0; i < buf_len(local_table); i++)
-	{
-		printf("(Local table -> ");
-		for (size_t j = 0; j < buf_len(local_table[i]); j++)
-		{
-			dump_sym(local_table[i][j]);
-		}
-		printf(")");
 	}
 }

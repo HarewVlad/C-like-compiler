@@ -222,6 +222,38 @@ Stmt *parse_stmt_if()
 	return new_stmt_if(cond, then_block, else_ifs, else_block);
 }
 
+Stmt *parse_stmt_expr()
+{
+	Expr *e = parse_expr();
+	Stmt *s = new_stmt_expr(e);
+	expect_token(';');
+	return s;
+}
+
+bool make_prediction(int k, TokenKind kind)
+{
+	char *save_stream = stream;
+	TokenKind save_kind = token.kind;
+
+	for (int i = 0; i < k; i++)
+	{
+		next();
+	}
+
+	if (token.kind == kind)
+	{
+		stream = save_stream;
+		token.kind = save_kind;
+		return true;
+	}
+	else
+	{
+		stream = save_stream;
+		token.kind = save_kind;
+		return false;
+	}
+}
+
 Stmt *parse_stmt()
 {
 	Stmt *s = NULL;
@@ -243,11 +275,23 @@ Stmt *parse_stmt()
 	}
 	else if (is_token(TOKEN_NAME))
 	{
-		s = parse_stmt_asign();
+		if (make_prediction(1, TOKEN_ADD))
+			s = parse_stmt_expr();
+		else
+			s = parse_stmt_asign();
 	}
 	else if (match_keyword(if_keyword))
 	{
 		s = parse_stmt_if();
+	}
+	else if (is_token(TOKEN_INT))
+	{
+		if (make_prediction(1, TOKEN_ADD))
+		{
+			s = parse_stmt_expr();
+		}
+		else
+			fatal("unexpected decimal '%d'", token.int_val);
 	}
 	return s;
 }

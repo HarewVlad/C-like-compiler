@@ -48,13 +48,12 @@ void parse_test()
 
 	const char *code[] = // STMT_EXPR for checking cond.
 	{
-		// "{ int a = b + 10.6 + 20.6 + c; b = 10; int b = 20; int c = 10.5;}",
-		// "{ int a = 10; int b = 20; if (a) { int c = 30; } else if (b) {int d = 40; int e = f; } else { int f = 60; } }" // TODO: resolve a == 10
-		"{ int a = 10; int b = 20; if (a) { int c = d; } else if (b) { int d = 40; int e = 50; } }"
+		// "{ 1 + 2; int a = 10; if (a) {int b = a + 1;} else {int b = 10;}}",
+		"{ int a = 10; if (a) { int b = 20; } else {int c = 30; } }"
 	};
 
 	Stmt **stmt_list = NULL;
-
+		
 	for (size_t i = 0; i < sizeof(code) / sizeof(*code); i++)
 	{
 		init_stream(code[i]);
@@ -77,14 +76,15 @@ void parse_test()
 	}
 
 	printf("Code gen -> \n");
-	for (size_t i = 0; i < buf_len(stmt_list); i++)
+	/*for (size_t i = 0; i < buf_len(stmt_list); i++)
 	{
 		install_operand(stmt_list[i]);
 	}
+	*/
 
 	for (size_t i = 0; i < buf_len(stmt_list); i++)
 	{
-		gen(stmt_list[i]);
+		gen_stmt(stmt_list[i]);
 	}
 }
 
@@ -98,9 +98,13 @@ void test_reg()
 	}
 }
 
+extern void asm_proc();
+
 int main()
 {
+	// test_emit();
 	init_keywords();
+	init_regs();
 
 	lex_test();
 	parse_test();

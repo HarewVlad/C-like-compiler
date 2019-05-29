@@ -187,6 +187,11 @@ void emit_rex_indexed(uint8_t rx, uint8_t base, uint8_t index)
 	emit_mod_rx_rm(INDIRECT_DISP32, extension_##op##_x, src); \
 	emit32(disp); \
 
+#define emit_i(op, immediate) \
+	emit_rex(0, 0); \
+	emit_##op##_i(); \
+	emit32(immediate); \
+
 // Few more
 
 #define OP1R(op, opcode) \
@@ -201,11 +206,12 @@ void emit_rex_indexed(uint8_t rx, uint8_t base, uint8_t index)
 		emit(opcode); \
 	} \
 
-#define OP1I(op, opcode) \
+#define OP1I(op, opcode, extension) \
 	void emit_##op##_i() \
 	{ \
 		emit(opcode); \
 	} \
+	enum { extension_##op##_x = extension };
 
 #define OP1X(op, opcode, extension) \
 	void emit_##op##_x() \
@@ -216,9 +222,11 @@ void emit_rex_indexed(uint8_t rx, uint8_t base, uint8_t index)
 
 OP1R(add, 0x03);
 OP1M(add, 0x01);
-OP1I(add, 0x81);
-OP1I(mov, 0xC7);
-OP1I(sub, 0x81);
+OP1I(add, 0x81, 0x00);
+OP1I(mov, 0xC7, 0x00);
+OP1I(sub, 0x81, 0x00);
+OP1I(jmp, 0xE9, 0x00);
+OP1I(cmp, 0x3D, 0x00);
 OP1X(mul, 0xF7, RSP);
 OP1X(div, 0xF7, RSI);
 
@@ -226,6 +234,8 @@ void test_emit()
 {
 	for (uint8_t dst = RAX; dst <= R15; dst++)
 	{
+		emit_i(jmp, 0xffffffff);
+		emit_i(cmp, 0x1);
 		for (uint8_t src = RAX; src <= R15; src++)
 		{
 			if ((src & 7) != RBP && (src & 7) != RSP)

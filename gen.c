@@ -91,10 +91,43 @@ void dump_reg(Register r)
 	}
 }
 
+void dump_op(TokenKind kind)
+{
+	switch (kind)
+	{
+	case TOKEN_ADD:
+		printf("ADD ");
+		break;
+	case TOKEN_SUB:
+		printf("SUB ");
+		break;
+	case TOKEN_MUL:
+		printf("MUL ");
+		break;
+	case TOKEN_DIV:
+		printf("DIV ");
+		break;
+	default:
+		assert(0);
+		break;
+	}
+}
+
+typedef enum OperandKind
+{
+	OPERAND_EXPR,
+	OPERAND_DECL,
+} OperandKind;
+
 typedef struct Operand
 {
 	Register r;
-	Decl *decl;
+	OperandKind kind;
+	union
+	{
+		Expr *expr;
+		Decl *decl;
+	};
 } Operand;
 
 Operand **operands;
@@ -122,9 +155,11 @@ void install_decl(Decl *d)
 	switch (d->kind)
 	{
 	case DECL_VAR:
+	{
 		Register r = alloc_reg();
 		Operand *o = new_operand(r, d);
 		buf_push(operands, o);
+	}
 		break;
 	default:
 		assert(0);
@@ -166,111 +201,95 @@ void install_operand(Stmt *s)
 	}
 }
 
-Expr *gen_op(Register r, TokenKind op, Expr *left, Expr *right)
-{
-	int a_value = left->int_val;
-	int b_value = right->int_val;
-
-	printf("MOV ");
-	dump_reg(r);
-	printf(", %d\n", a_value);
-	emit_r_i(mov, r, a_value);
-
-	switch (op)
-	{
-	case '+':
-		printf("ADD ");
-		dump_reg(r);
-		printf(", %d\n", b_value);
-		emit_r_i(add, r, b_value);
-		return new_expr_int(a_value + b_value);
-		break;
-	case '-':
-		printf("SUB ");
-		dump_reg(r);
-		printf(", %d\n", b_value);
-		emit_r_i(sub, r, b_value);
-		return new_expr_int(a_value - b_value);
-		break;
-	case '*':
-		printf("MUL ");
-		dump_reg(r);
-		printf(", %d\n", b_value);
-		// emit_r_i(mul, r, b_value);
-		return new_expr_int(a_value * b_value);
-		break;
-	case '/':
-		printf("DIV ");
-		dump_reg(r);
-		printf(", %d\n", b_value);
-		// emit_r_i(div, r, b_value);
-		return new_expr_int(a_value / b_value);
-		break;
-	default:
-		assert(0);
-		break;
-	}
-}
-
-Expr *gen_expr(Operand *o, Expr *e)
+Register dump_gen_expr(Expr *e)
 {
 	switch (e->kind)
 	{
 	case EXPR_INT:
-		return e;
-		break;
-	case EXPR_NAME:
-		Decl *d = get_sym(e->name);
-		Operand *new_operand = get_operand(d);
-		return gen_expr(o, d->var.expr);
-		break;
+	{
+		Register r = alloc_reg();
+		printf("MOV ");
+		dump_reg(r);
+		printf(", ");
+		dump_expr(e);
+		printf("\n");
+		return r;
+	}
+	break;
+	case EXPR_NAME: // TODO: refactor
+	{
+		Register r = alloc_reg();
+		printf("MOV ");
+		dump_reg(r);
+		printf(", ");
+		Decl *d = get_sym_decl(e->name);
+		dump_expr(d->var.expr);
+		printf("\n");
+		return r;
+	}
+	break;
 	case EXPR_BINARY:
-		Expr *a = gen_expr(o, e->binary.left);
-		Expr *b = gen_expr(o, e->binary.right);
-		return gen_op(o->r, e->binary.op, a, b);
-		break;
+	{
+		Register left = dump_gen_expr(e->binary.left);
+		Register right = dump_gen_expr(e->binary.right);
+		dump_op(e->binary.op);
+		dump_reg(left);
+		printf(", ");
+		dump_reg(right);
+		printf("\n");
+		free_reg(right);
+		return left;
+	}
+	break;
 	default:
 		assert(0);
 		break;
 	}
 }
 
-void gen_decl(Operand *o)
-{
-	Expr *e = gen_expr(o, o->decl->var.expr);
-	printf("MOV ");
-	dump_reg(o->r);
-	printf(", %d\n", dump_expr_value(e));
-}
-
-void gen_asign(Operand *o, Expr *e)
-{
-	o->decl->var.expr = e;
-	gen_decl(o);
-}
-
-void gen(Stmt *s)
+void gen_stmt(Stmt *s)
 {
 	switch (s->kind)
 	{
 	case STMT_DECL:
 	{
-		Operand *o = get_operand(s->decl);
-		gen_decl(o);
+		Register r = dump_gen_expr(s->decl->var.expr);
+		Operand *o = new_operand(r, s->decl);
+		buf_push(operands, o);
+	}
+	break;
+	case STMT_ASIGN: // TODO: refactor
+	{
+		Decl *d = get_sym_decl(s->asign.name);
+		Operand *o = get_operand(d);
+		free_reg(o->r);
+		Register r = dump_gen_expr(s->asign.e);
+		o->r = r;
+	}
+	break;
+	case STMT_IF:
+	{
+		Register r = dump_gen_expr(s->if_stmt.cond);
+		printf("CMP ");
+		dump_reg(r);
+		printf(", TRUE\n");
+		printf("JNE end\n");
+		gen_stmt(s->if_stmt.then_block);
+		printf("end: ");
+		/*for (size_t i = 0; i < buf_len(s->if_stmt.else_ifs); i++)
+		{
+			gen_stmt(s->if_stmt.else_ifs->block);
+		}
+		*/
+		if (s->if_stmt.else_block != NULL)
+			gen_stmt(s->if_stmt.else_block);
 	}
 		break;
 	case STMT_BLOCK:
 		for (size_t i = 0; i < buf_len(s->block.stmts); i++)
 		{
-			gen(s->block.stmts[i]);
+			gen_stmt(s->block.stmts[i]);
 		}
-		break;
-	case STMT_ASIGN: // TODO: think about that
-	{
-		Decl * d = get_sym(s->asign.name);
-		Operand *o = get_operand(d);
-		gen_asign(o, s->asign.e);
-	}
 		break;
 	default:
 		assert(0);
